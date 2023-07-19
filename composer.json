@@ -1,0 +1,15 @@
+{
+    "name": "weida/weixin-open-platform",
+    "autoload": {
+        "psr-4": {
+            "Weida\\WeixinOpenPlatform\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Weida",
+            "email": "sgenmi@gmail.com"
+        }
+    ],
+    "require": {}
+}
