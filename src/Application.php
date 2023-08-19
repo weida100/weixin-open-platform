@@ -8,19 +8,22 @@ declare(strict_types=1);
 
 namespace Weida\WeixinOpenPlatform;
 
+use Psr\SimpleCache\CacheInterface;
+use Weida\WeixinCore\AccessToken;
 use Weida\WeixinCore\Contract\AccessTokenInterface;
 use Weida\WeixinCore\Contract\AuthorizeInterface;
 use Weida\WeixinCore\Contract\ResponseInterface;
 use Weida\WeixinCore\AbstractApplication;
 use Weida\WeixinCore\Contract\VerifyTicketInterface;
 use Closure;
+use Weida\WeixinOfficialAccount\Application as OfficialAccountApplication;
 
 class Application extends AbstractApplication
 {
     //开放平台
     protected string $appType='openPlatform';
     protected ?VerifyTicketInterface $verifyTicket=null;
-    protected AuthorizeInterface $authorize;
+    protected ?AuthorizeInterface $authorize=null;
 
     /**
      * @return VerifyTicketInterface
@@ -68,7 +71,8 @@ class Application extends AbstractApplication
      * @return void
      * @author Weida
      */
-    protected function getResponseAfter(){
+    protected function getResponseAfter(): void
+    {
         if ($this->response instanceof ResponseInterface) {
             $this->response->with( function ($message, Closure $next): mixed {
                 if(isset($message['InfoType']) && $message['InfoType']=='component_verify_ticket'){
@@ -124,7 +128,8 @@ class Application extends AbstractApplication
         if($this->authorize){
             $this->authorize = new Authorize(
                 $this->getAccount()->getAppId(),
-                $this->getClient()
+                $this->getHttpClient(),
+                $this->getComponentAccessToken()
             );
         }
         return $this->authorize;
@@ -161,12 +166,94 @@ class Application extends AbstractApplication
     }
 
     /**
+     * 真实使用这个方法并不多，采用匿名类返回
+     * 授权的返回的code
      * @param string $authorizationCode
-     * @return array
+     * @return object
      * @author Weida
      */
-    public function getAuthorization(string $authorizationCode):array{
-        return $this->getAuthorize()->getAuthorization($authorizationCode);
+    public function getAuthorization(string $authorizationCode): object
+    {
+        $arr= $this->getAuthorize()->getAuthorization($authorizationCode);
+        return new class($arr,$this->getCache(),$this->getAuthorize()){
+            private array $arr=[];
+            private CacheInterface $cache;
+            private AuthorizeInterface $authorize;
+            public function __construct($arr,CacheInterface $cache,AuthorizeInterface $authorize){
+                $this->arr = $arr;
+                $this->cache = $cache;
+                $this->authorize = $authorize;
+            }
+            public function getAppId():string{
+                return (string)($this->arr['authorization_info']['authorizer_appid']??'');
+            }
+            public function getAccessToken():AccessTokenInterface{
+                return new AuthorizeAccessToken(
+                    $this->getAppId(),$this->getRefreshToken(),$this->cache,$this->authorize
+                );
+            }
+            public function getRefreshToken():string {
+                return (string) $this->attributes['authorization_info']['authorizer_refresh_token'] ?? '';
+            }
+            public function getAttributes():array{
+                return $this->arr;
+            }
+        };
     }
+
+    /**
+     * 网页/app 登录授权
+     * @return void
+     * @author Weida
+     */
+    public function getOAuth(){
+
+    }
+
+    /**
+     * @param AccessTokenInterface $accessToken
+     * @param array $config
+     * @return OfficialAccountApplication
+     * @author Weida
+     */
+    public function getOfficialAccount(AccessTokenInterface $accessToken,array $config=[]):OfficialAccountApplication {
+        $app =  new OfficialAccountApplication(
+            array_merge($config,[
+                'app_id'=>$accessToken->getParams()['app_id'],
+            ]));
+        //这里重新设置 AccessTokenInterface，传实例，全局监控accessToken过期 可以自动重新获取
+        //如果直接给直实的accessToken,我们在使用过程中 发现会过期(发大量模板消息时)。还要自已重新拿一次新的token，在重发,
+        //如果是实例，则自动获取
+        $app->setAccessToken($accessToken);
+        return $app;
+    }
+
+    /**
+     * @param string $appId
+     * @param string $refreshToken
+     * @param array $config
+     * @return OfficialAccountApplication
+     * @author Weida
+     */
+    public function getOfficialAccountWithRefreshToken(string $appId, string $refreshToken, array $config = []):OfficialAccountApplication {
+        return $this->getOfficialAccount(
+            new AuthorizeAccessToken($appId,$refreshToken,$this->getCache(),$this->getAuthorize()),
+            $config
+        );
+    }
+
+    /**
+     * @param string $appId
+     * @param string $accessToken
+     * @param array $config
+     * @return OfficialAccountApplication
+     * @author Weida
+     */
+    public function getOfficialAccountWithAccessToken(string $appId, string $accessToken, array $config = []): OfficialAccountApplication {
+        $authorizeAccessToken = new AuthorizeAccessToken($appId,'',$this->getCache(),$this->getAuthorize());
+        $authorizeAccessToken->setToken($accessToken);
+        return $this->getOfficialAccount( $authorizeAccessToken, $config);
+    }
+
 
 }
