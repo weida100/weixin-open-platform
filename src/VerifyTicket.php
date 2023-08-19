@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 namespace Weida\WeixinOpenPlatform;
 
+use Psr\SimpleCache\CacheInterface;
+use Psr\SimpleCache\InvalidArgumentException;
 use Weida\WeixinCore\Contract\VerifyTicketInterface;
 
 class VerifyTicket implements VerifyTicketInterface
@@ -23,6 +25,7 @@ class VerifyTicket implements VerifyTicketInterface
 
     /**
      * @return string
+     * @throws InvalidArgumentException
      * @author Weida
      */
     public function getTicket(): string
@@ -34,6 +37,7 @@ class VerifyTicket implements VerifyTicketInterface
      * @param string $ticket
      * @param int $ttl
      * @return $this
+     * @throws InvalidArgumentException
      * @author Weida
      */
     public function setTicket(string $ticket, int $ttl = 43000): static
