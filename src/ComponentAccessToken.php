@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace Weida\WeixinOpenPlatform;
 
 use Psr\SimpleCache\CacheInterface;
+use RuntimeException;
 use Weida\WeixinCore\Contract\AccessTokenInterface;
 use Weida\WeixinCore\Contract\HttpClientInterface;
 use Weida\WeixinCore\Contract\VerifyTicketInterface;
@@ -45,6 +46,16 @@ class ComponentAccessToken implements AccessTokenInterface
         return $this->refresh();
     }
 
+    /**
+     * @param string $accessToken
+     * @return $this
+     * @author Weida
+     */
+    public function setToken(string $accessToken): static
+    {
+        return $this;
+    }
+
     protected function refresh(){
         $apiUrl = '/component/api_component_token';
         $params=[
@@ -73,6 +84,10 @@ class ComponentAccessToken implements AccessTokenInterface
         return  $this->cache->ttl($this->getCacheKey());
     }
 
+    /**
+     * @return array
+     * @author Weida
+     */
     public function getParams(): array
     {
         return [
