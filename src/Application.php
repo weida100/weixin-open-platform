@@ -125,7 +125,7 @@ class Application extends AbstractApplication
      * @author Weida
      */
     public function getAuthorize():AuthorizeInterface{
-        if($this->authorize){
+        if(empty($this->authorize)){
             $this->authorize = new Authorize(
                 $this->getAccount()->getAppId(),
                 $this->getHttpClient(),
@@ -217,13 +217,23 @@ class Application extends AbstractApplication
      * @author Weida
      */
     public function getOfficialAccount(AccessTokenInterface $accessToken,array $config=[]):OfficialAccountApplication {
+        $baseConfig=[
+            'retry'=> $this->getConfig()->get('retry',true)
+        ];
+        if($this->getConfig()->get('cache.redis')){
+            $baseConfig['cache']['redis'] = $this->getConfig()->get('cache.redis');
+        }
+        if($this->getConfig()->get('cache.file')){
+            $baseConfig['cache']['file'] = $this->getConfig()->get('cache.file');
+        }
         $app =  new OfficialAccountApplication(
-            array_merge($config,[
-                'app_id'=>$accessToken->getParams()['app_id'],
+            array_merge($baseConfig,$config,[
+                'app_id'=>$accessToken->getParams()['authorizerAppId'],
             ]));
         //这里重新设置 AccessTokenInterface，传实例，全局监控accessToken过期 可以自动重新获取
         //如果直接给直实的accessToken,我们在使用过程中 发现会过期(发大量模板消息时)。还要自已重新拿一次新的token，在重发,
         //如果是实例，则自动获取
+        $app->setEncryptor($this->getEncryptor());
         $app->setAccessToken($accessToken);
         return $app;
     }
