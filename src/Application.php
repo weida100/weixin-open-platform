@@ -217,17 +217,8 @@ class Application extends AbstractApplication
      * @author Weida
      */
     public function getOfficialAccount(AccessTokenInterface $accessToken,array $config=[]):OfficialAccountApplication {
-        $baseConfig=[
-            'retry'=> $this->getConfig()->get('retry',true)
-        ];
-        if($this->getConfig()->get('cache.redis')){
-            $baseConfig['cache']['redis'] = $this->getConfig()->get('cache.redis');
-        }
-        if($this->getConfig()->get('cache.file')){
-            $baseConfig['cache']['file'] = $this->getConfig()->get('cache.file');
-        }
         $app =  new OfficialAccountApplication(
-            array_merge($baseConfig,$config,[
+            array_merge($config,[
                 'app_id'=>$accessToken->getParams()['authorizerAppId'],
             ]));
         //这里重新设置 AccessTokenInterface，传实例，全局监控accessToken过期 可以自动重新获取
@@ -235,6 +226,8 @@ class Application extends AbstractApplication
         //如果是实例，则自动获取
         $app->setEncryptor($this->getEncryptor());
         $app->setAccessToken($accessToken);
+        $app->setCache($this->getCache());
+        $app->setHttpClient($this->getHttpClient());
         return $app;
     }
 
