@@ -9,7 +9,6 @@ declare(strict_types=1);
 namespace Weida\WeixinOpenPlatform;
 
 use Psr\SimpleCache\CacheInterface;
-use Weida\WeixinCore\AccessToken;
 use Weida\WeixinCore\Contract\AccessTokenInterface;
 use Weida\WeixinCore\Contract\AuthorizeInterface;
 use Weida\WeixinCore\Contract\ResponseInterface;
@@ -17,6 +16,7 @@ use Weida\WeixinCore\AbstractApplication;
 use Weida\WeixinCore\Contract\VerifyTicketInterface;
 use Closure;
 use Weida\WeixinOfficialAccount\Application as OfficialAccountApplication;
+use Weida\WeixinMiniProgram\Application as MiniProgramApplication;
 
 class Application extends AbstractApplication
 {
@@ -257,6 +257,52 @@ class Application extends AbstractApplication
         $authorizeAccessToken->setToken($accessToken);
         return $this->getOfficialAccount( $authorizeAccessToken, $config);
     }
+
+    /**
+     * @param AccessTokenInterface $accessToken
+     * @param array $config
+     * @return MiniProgramApplication
+     * @author Weida
+     */
+    public function getMiniApp(AccessTokenInterface $accessToken,array $config=[]):MiniProgramApplication{
+        $app =  new MiniProgramApplication(
+            array_merge($config,[
+                'app_id'=>$accessToken->getParams()['authorizerAppId'],
+            ]));
+        $app->setEncryptor($this->getEncryptor());
+        $app->setAccessToken($accessToken);
+        $app->setCache($this->getCache());
+        $app->setHttpClient($this->getHttpClient());
+        return $app;
+    }
+
+    /**
+     * @param string $appId
+     * @param string $accessToken
+     * @param array $config
+     * @return MiniProgramApplication
+     * @author Weida
+     */
+    public function getMiniAppWithAccessToken(string $appId, string $accessToken, array $config = []):MiniProgramApplication{
+        $authorizeAccessToken = new AuthorizeAccessToken($appId,'',$this->getCache(),$this->getAuthorize());
+        $authorizeAccessToken->setToken($accessToken);
+        return $this->getMiniApp( $authorizeAccessToken, $config);
+    }
+
+    /**
+     * @param string $appId
+     * @param string $refreshToken
+     * @param array $config
+     * @return MiniProgramApplication
+     * @author Weida
+     */
+    public function getMiniAppWithRefreshToken( string $appId, string $refreshToken, array $config = []):MiniProgramApplication {
+        return $this->getMiniApp(
+            new AuthorizeAccessToken($appId,$refreshToken,$this->getCache(),$this->getAuthorize()),
+            $config
+        );
+    }
+
 
 
 }
