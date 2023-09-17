@@ -11,5 +11,8 @@
             "email": "sgenmi@gmail.com"
         }
     ],
-    "require": {}
+    "require": {
+        "weida/weixin-core": "^v0.0.1"
+    },
+    "minimum-stability": "dev"
 }
