@@ -14,6 +14,9 @@ use Weida\WeixinCore\AbstractResponse;
 use Weida\WeixinCore\Contract\MessageInterface;
 use Weida\WeixinCore\Message as CoreMessage;
 use Weida\WeixinOfficialAccount\Message\Message;
+use GuzzleHttp\Psr7\Response as Psr7Response;
+use Psr\Http\Message\MessageInterface as PsrMessageInterface;
+
 
 class Response extends AbstractResponse
 {
@@ -48,18 +51,19 @@ class Response extends AbstractResponse
     }
 
     /**
-     * @return ResponseInterface
+     * @return PsrMessageInterface|ResponseInterface
      * @author Weida
      */
-    public function serve():ResponseInterface{
+    public function response(): ResponseInterface
+    {
+        $resp = new Psr7Response(200,[],'success');
         if (!empty($this->params['echostr'])) {
-            $this->withBody($this->params['echostr']);
-            return $this;
+            return $resp->withBody($this->createBody($this->params['echostr']));
         }
         $message = $this->getDecryptedMessage();
         $response = $this->middleware->handler($this,$message);
         if(empty($response)){
-            return $this;
+            return $resp;
         }
         if(is_string($response) || is_numeric($response)){
             $response = Message::Text((string)$response);
@@ -69,14 +73,16 @@ class Response extends AbstractResponse
             }
         }
         if ($response instanceof MessageInterface){
-            $this->withHeader('Content-Type', 'application/xml;charset=utf-8');
+            $resp =$resp ->withHeader('Content-Type', 'application/xml;charset=utf-8');
             if(!($response instanceof Message)){
                 $response = new Message($response->getAttributes());
             }
             $content = $response->toXmlReply($message,$this->encryptor);
-            $this->withBody($content);
+            $resp = $resp->withBody($this->createBody($content));
         }
-        return $this;
+        return $resp;
     }
+
+
 
 }
